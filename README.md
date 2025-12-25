@@ -3,11 +3,11 @@
 
 Shijie Zhou, Haoran Chang*, Sicheng Jiang*, Zhiwen Fan, Zehao Zhu, Dejia Xu, Pradyumna Chari, Suya You, Zhangyang Wang, Achuta Kadambi (* indicates equal contribution)<br>
 | [Webpage](https://feature-3dgs.github.io/) | [Full Paper](https://arxiv.org/abs/2312.03203) | [Video](https://www.youtube.com/watch?v=h4zmQsCV_Qw) | [Viewer Pre-built for Windows](https://drive.google.com/file/d/1DRFrtFUfz27QvQKOWbYXbRS2o2eSgaUT/view?usp=sharing)<br>
-![Teaser image](assets/teaser_v5_2.png) 
+![Teaser image](assets/teaser_v5_2.png)
 
 <!-- <a href="https://www.inria.fr/"><img height="100" src="assets/logo_inria.png"> </a>
 <a href="https://univ-cotedazur.eu/"><img height="100" src="assets/logo_uca.png"> </a>
-<a href="https://www.mpi-inf.mpg.de"><img height="100" src="assets/logo_mpi.png"> </a> 
+<a href="https://www.mpi-inf.mpg.de"><img height="100" src="assets/logo_mpi.png"> </a>
 <a href="https://team.inria.fr/graphdeco/"> <img style="width:100%;" src="assets/logo_graphdeco.png"></a> -->
 
 Abstract: *3D scene representations have gained immense popularity in recent years. Methods that use Neural Radiance fields are versatile for traditional tasks such as novel view synthesis. In recent times, some work has emerged that aims to extend the functionality of NeRF beyond view synthesis, for semantically aware tasks such as editing and segmentation using 3D feature field distillation from 2D foundation models. However, these methods have two major limitations: (a) they are limited by the rendering speed of NeRF pipelines, and (b) implicitly represented feature fields suffer from continuity artifacts reducing feature quality. Recently, 3D Gaussian Splatting has shown state-of-the-art performance on real-time radiance field rendering. In this work, we go one step further: in addition to radiance field rendering, we enable 3D Gaussian splatting on arbitrary-dimension semantic features via 2D foundation model distillation. This translation is not straightforward: naively incorporating feature fields in the 3DGS framework encounters significant challenges, notably the disparities in spatial resolution and channel consistency between RGB images and feature maps. We propose architectural and training changes to efficiently avert this problem. Our proposed method is general, and our experiments showcase novel view semantic segmentation, language-guided editing and segment anything through learning feature fields from state-of-the-art 2D foundation models such as SAM and CLIP-LSeg. Across experiments, our distillation method is able to provide comparable or better results, while being significantly faster to both train and render. Additionally, to the best of our knowledge, we are the first method to enable point and bounding-box prompting for radiance field manipulation, by leveraging the SAM model.*
@@ -34,16 +34,19 @@ conda activate feature_3dgs
 ``` -->
 
 ```shell
-conda create --name feature_3dgs python=3.8
+# conda create --name feature_3dgs python=3.8
+conda create --name feature_3dgs python=3.9
 conda activate feature_3dgs
 ```
 PyTorch (Please check your CUDA version, we used 11.8)
 ```shell
-pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu118
+# pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu118
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 ```
 
 Required packages
 ```shell
+pip install --no-build-isolation git+https://github.com/zhanghang1989/PyTorch-Encoding/
 pip install -r requirements.txt
 ```
 
@@ -51,13 +54,15 @@ Submodules
 
 <span style="color: orange;">***New***</span>: Our Parallel N-dimensional Gaussian Rasterizer now supports RGB, arbitrary N-dimensional Feature, and Depth rendering.
 ```shell
-pip install submodules/diff-gaussian-rasterization-feature # Rasterizer for RGB, n-dim feature, depth
-pip install submodules/simple-knn
+# pip install submodules/diff-gaussian-rasterization-feature # Rasterizer for RGB, n-dim feature, depth
+# pip install submodules/simple-knn
+pip install --no-build-isolation submodules/diff-gaussian-rasterization-feature # Rasterizer for RGB, n-dim feature, depth
+pip install --no-build-isolation submodules/simple-knn
 ```
 
 # Processing your own Scenes
 
-We follow the same dataset logistics for [3D Gaussian Splatting](https://github.com/graphdeco-inria/gaussian-splatting). If you want to work with your own scene, put the images you want to use in a directory ```<location>/input```. 
+We follow the same dataset logistics for [3D Gaussian Splatting](https://github.com/graphdeco-inria/gaussian-splatting). If you want to work with your own scene, put the images you want to use in a directory ```<location>/input```.
 ```
 <location>
 |---input
@@ -67,7 +72,7 @@ We follow the same dataset logistics for [3D Gaussian Splatting](https://github.
 ```
 For rasterization, the camera models must be either a SIMPLE_PINHOLE or PINHOLE camera. We provide a converter script ```convert.py```, to extract undistorted images and SfM information from input images. Optionally, you can use ImageMagick to resize the undistorted images. This rescaling is similar to MipNeRF360, i.e., it creates images with 1/2, 1/4 and 1/8 the original resolution in corresponding folders. To use them, please first install a recent version of COLMAP (ideally CUDA-powered) and ImageMagick.
 
-If you have COLMAP and ImageMagick on your system path, you can simply run 
+If you have COLMAP and ImageMagick on your system path, you can simply run
 ```shell
 python convert.py -s <location> [--resize] #If not resizing, ImageMagick is not needed
 ```
@@ -102,7 +107,7 @@ If you have your own COLMAP dataset without undistortion (e.g., using ```OPENCV`
         |---0
             |---...
 ```
-Then run 
+Then run
 ```shell
 python convert.py -s <location> --skip_matching [--resize] #If not resizing, ImageMagick is not needed
 ```
@@ -116,7 +121,7 @@ python convert.py -s <location> --skip_matching [--resize] #If not resizing, Ima
   Flag to indicate that COLMAP info is available for images.
   #### --source_path / -s
   Location of the inputs.
-  #### --camera 
+  #### --camera
   Which camera model to use for the early matching steps, ```OPENCV``` by default.
   #### --resize
   Flag for creating resized versions of input images.
@@ -195,9 +200,12 @@ python export_image_embeddings.py --checkpoint checkpoints/sam_vit_h_4b8939.pth 
 
 
 
-# Training, Rendering, and Inference: 
+# Training, Rendering, and Inference:
 
 ## 🔥 New features: Multi-functional Interactive Viewer (optional)
+
+> Ref: https://github.com/graphdeco-inria/gaussian-splatting/issues/923
+
 We are glad to introduce a brand new Multi-functional Interactive Viewer for the visualization of *RGB*, *Depth*, *Edge*, *Normal*, *Curvature*, and especially <span style="color: orange;">***semantic feature***</span>. The Pre-built Viewer for Windows is placed in `viewer_windows` and can also be downloaded [here](https://drive.google.com/file/d/1DRFrtFUfz27QvQKOWbYXbRS2o2eSgaUT/view?usp=sharing). If your OS is Ubuntu 22.04, you need to compile the viewer locally:
 ```shell
 # Dependencies
@@ -213,7 +221,7 @@ You can visit [GS Monitor](https://github.com/RongLiu-Leo/Gaussian-Splatting-Mon
 
 https://github.com/RongLiu-Leo/feature-3dgs/assets/102014841/7baf236f-29bc-4de1-9a99-97d528f6e63e
 ### How to use
-Firstly run the viewer, 
+Firstly run the viewer,
 ```shell
 ./viewer_windows/bin/SIBR_remoteGaussian_app_rwdi # Windows
 ```
@@ -224,7 +232,7 @@ or
 ```
 and then
 
-1. If you want to monitor the training process, run `train.py`, see [Train](#train) section for more details. 
+1. If you want to monitor the training process, run `train.py`, see [Train](#train) section for more details.
 
 2. If you prefer faster training, run `view.py` to interact with your trained model once training is complete. See [View the Trained Model](#view-the-trained-model) section for more details.
 
@@ -235,10 +243,10 @@ python train.py -s data/DATASET_NAME -m output/OUTPUT_NAME -f lseg --speedup --i
 ```
 <details>
 <summary><span style="font-weight: bold;">Command Line Arguments for train.py</span></summary>
-  
+
   #### --source_path / -s
   Path to the source directory containing a COLMAP or Synthetic NeRF data set.
-  #### --model_path / -m 
+  #### --model_path / -m
   Path where the trained model should be stored (```output/<random>``` by default).
   #### --foundation_model / -f
   Switch different foundation model encoders, `lseg` for LSeg and `sam` for SAM
@@ -268,7 +276,7 @@ python train.py -s data/DATASET_NAME -m output/OUTPUT_NAME -f lseg --speedup --i
   Number of total iterations to train for, ```30_000``` by default.
   #### --ip
   IP to start GUI server on, ```127.0.0.1``` by default.
-  #### --port 
+  #### --port
   Port to use for GUI server, ```6009``` by default.
   #### --test_iterations
   Space-separated iterations at which the training script computes L1 and PSNR over test set, ```7000 30000``` by default.
@@ -278,8 +286,8 @@ python train.py -s data/DATASET_NAME -m output/OUTPUT_NAME -f lseg --speedup --i
   Space-separated iterations at which to store a checkpoint for continuing later, saved in the model directory.
   #### --start_checkpoint
   Path to a saved checkpoint to continue training from.
-  #### --quiet 
-  Flag to omit any text written to standard out pipe. 
+  #### --quiet
+  Flag to omit any text written to standard out pipe.
   #### --feature_lr
   Spherical harmonics features learning rate, ```0.0025``` by default.
   #### --opacity_lr
@@ -295,9 +303,9 @@ python train.py -s data/DATASET_NAME -m output/OUTPUT_NAME -f lseg --speedup --i
   #### --position_lr_final
   Final 3D position learning rate, ```0.0000016``` by default.
   #### --position_lr_delay_mult
-  Position learning rate multiplier (cf. Plenoxels), ```0.01``` by default. 
+  Position learning rate multiplier (cf. Plenoxels), ```0.01``` by default.
   #### --densify_from_iter
-  Iteration where densification starts, ```500``` by default. 
+  Iteration where densification starts, ```500``` by default.
   #### --densify_until_iter
   Iteration where densification stops, ```15_000``` by default.
   #### --densify_grad_threshold
@@ -305,16 +313,16 @@ python train.py -s data/DATASET_NAME -m output/OUTPUT_NAME -f lseg --speedup --i
   #### --densification_interval
   How frequently to densify, ```100``` (every 100 iterations) by default.
   #### --opacity_reset_interval
-  How frequently to reset opacity, ```3_000``` by default. 
+  How frequently to reset opacity, ```3_000``` by default.
   #### --lambda_dssim
-  Influence of SSIM on total loss from 0 to 1, ```0.2``` by default. 
+  Influence of SSIM on total loss from 0 to 1, ```0.2``` by default.
   #### --percent_dense
   Percentage of scene extent (0--1) a point must exceed to be forcibly densified, ```0.01``` by default.
 
 </details>
 
 ### Gaussian Rasterization with High-dimensional Features
-You can customize `NUM_SEMANTIC_CHANNELS` in `submodules/diff-gaussian-rasterization-feature/cuda_rasterizer/config.h` for any number of feature dimension that you want: 
+You can customize `NUM_SEMANTIC_CHANNELS` in `submodules/diff-gaussian-rasterization-feature/cuda_rasterizer/config.h` for any number of feature dimension that you want:
 
 - Customize `NUM_SEMANTIC_CHANNELS` in `config.h`.
 
@@ -322,7 +330,7 @@ If you would like to use the optional CNN speed-up module, do the following acco
 
 - Customize `NUMBER` in `semantic_feature_size/NUMBER` in `scene/gaussian_model.py` in line 142.
 - Customize `NUMBER` in `feature_out_dim/NUMBER` in `train.py` in line 51.
-- Customize `NUMBER` in `feature_out_dim/NUMBER` in `render.py` in line 117 and 261. 
+- Customize `NUMBER` in `feature_out_dim/NUMBER` in `render.py` in line 117 and 261.
 
 where `feature_out_dim` / `NUMBER` = `NUM_SEMANTIC_CHANNELS`. The `feature_out_dim` matches the ground truth foundation model dimensions, 512 for LSeg and 256 for SAM. The default `NUMBER = 4`. For your reference, here are 4 configurations of runing `train.py`:
 
@@ -340,7 +348,7 @@ For segmentation tasks:
 
 *: setup used in our experiments
 #### Notice:
-Everytime after modifying any CUDA code, make sure to delete `submodules/diff-gaussian-rasterization-feature/build` and compile again: 
+Everytime after modifying any CUDA code, make sure to delete `submodules/diff-gaussian-rasterization-feature/build` and compile again:
 <!-- ```
 cd submodules/diff-gaussian-rasterization
 pip install .
@@ -359,7 +367,7 @@ python view.py -s <path to COLMAP or NeRF Synthetic dataset> -m <path to trained
 
   #### --source_path / -s
   Path to the source directory containing a COLMAP or Synthetic NeRF data set.
-  #### --model_path / -m 
+  #### --model_path / -m
   Path where the trained model should be stored (```output/<random>``` by default).
   #### --iteration
   Specifies which of iteration to load.
@@ -377,16 +385,16 @@ python render.py -s data/DATASET_NAME -m output/OUTPUT_NAME  --iteration 3000
 <details>
 <summary><span style="font-weight: bold;">Command Line Arguments for render.py</span></summary>
 
-  #### --model_path / -m 
+  #### --model_path / -m
   Path to the trained model directory you want to create renderings for.
   #### --skip_train
   Flag to skip rendering the training set.
   #### --skip_test
   Flag to skip rendering the test set.
-  #### --quiet 
-  Flag to omit any text written to standard out pipe. 
+  #### --quiet
+  Flag to omit any text written to standard out pipe.
 
-  **The below parameters will be read automatically from the model path, based on what was used for training. However, you may override them by providing them explicitly on the command line.** 
+  **The below parameters will be read automatically from the model path, based on what was used for training. However, you may override them by providing them explicitly on the command line.**
 
   #### --source_path / -s
   Path to the source directory containing a COLMAP or Synthetic NeRF data set.
@@ -424,7 +432,7 @@ python render.py -s data/DATASET_NAME -m output/OUTPUT_NAME -f lseg --iteration 
 ### Generate videos:
 Run to create videos (add `--fps` to change FPS, e.g. `--fps 20` default is 10):
 ```
-python videos.py --data output/OUTPUT_NAME --fps 10 -f lseg  --iteration 10000 
+python videos.py --data output/OUTPUT_NAME --fps 10 -f lseg  --iteration 10000
 ```
 ## Inference
 ### LSeg encoder:
@@ -446,7 +454,7 @@ python -u segmentation_metric.py --backbone clip_vitl16_384 --weights demo_e200.
 
 ### SAM encoder:
 ### Segment from trained model's embedding with prompt (onnx)
-Run with following (add `--image` to encode features from images): 
+Run with following (add `--image` to encode features from images):
 1. Run with given input point coordinate (e.g. add `--point 500 800`):
 ```
 python segment_prompt.py --checkpoint checkpoints/sam_vit_h_4b8939.pth --model-type vit_h --data ../../output/OUTPUT_NAME --iteration 7000 --point 500 800
