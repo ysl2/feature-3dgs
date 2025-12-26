@@ -7,7 +7,7 @@ ftfy
 regex
 tqdm
 #./third_party/CLIP/
-git+https://github.com/openai/CLIP.git
+git+https://ghfast.top/https://github.com/openai/CLIP.git
 altair
 streamlit
 protobuf
@@ -20,7 +20,7 @@ wandb
 torchmetrics
 scikit-image
 scikit-learn
-git+https://github.com/zhanghang1989/PyTorch-Encoding/
+# git+https://ghfast.top/https://github.com/zhanghang1989/PyTorch-Encoding/
 pycocotools
 onnxruntime 
 onnx

@@ -11,3 +11,7 @@ screenshots
 *.pth
 data
 data_scannet
+.ipynb_checkpoints
+embree-3.13.5.x86_64.linux
+embree-3.13.5.x86_64.linux.tar.gz
+colmap
