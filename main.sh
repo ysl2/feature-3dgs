@@ -3,6 +3,7 @@ set -euo pipefail
 
 CONDA_ENV="feature-3dgs"
 CONDA_BIN="/home/songliyu/.vocal/miniforge3/bin/conda"
+COLMAP_BIN="/home/songliyu/.vocal/colmap/bin/colmap"
 
 DATASET_NAME=DJI_0544_0.5
 ITERATIONS=7000
@@ -26,7 +27,7 @@ rsync -a --delete "${DATA_ROOT}/images/" "${DATA_ROOT}/input/"
 # 清理旧的 COLMAP 产物，确保可重复执行
 rm -rf "${DATA_ROOT}/distorted" "${DATA_ROOT}/sparse" "${DATA_ROOT}/stereo"
 
-"${CONDA_BIN}" run -n "${CONDA_ENV}" python convert.py -s "${DATA_ROOT}"
+"${CONDA_BIN}" run -n "${CONDA_ENV}" python convert.py -s "${DATA_ROOT}" --colmap_executable "${COLMAP_BIN}"
 
 # ==============================
 # Step 2: 训练流程（按你的要求先注释）
