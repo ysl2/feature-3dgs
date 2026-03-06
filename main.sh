@@ -30,15 +30,18 @@ rm -rf "${DATA_ROOT}/distorted" "${DATA_ROOT}/sparse" "${DATA_ROOT}/stereo"
 "${CONDA_BIN}" run -n "${CONDA_ENV}" python convert.py -s "${DATA_ROOT}" --colmap_executable "${COLMAP_BIN}"
 
 # ==============================
-# Step 2: LSeg 特征编码
+# Step 2: LSeg 特征编码（必须在 encoders/lseg_encoder 目录执行）
 # ==============================
-"${CONDA_BIN}" run -n "${CONDA_ENV}" python -u encoders/lseg_encoder/encode_images.py \
-  --backbone clip_vitl16_384 \
-  --weights encoders/lseg_encoder/demo_e200.ckpt \
-  --widehead --no-scaleinv \
-  --outdir "${DATA_ROOT}/rgb_feature_langseg" \
-  --test-rgb-dir "${DATA_ROOT}/images" \
-  --workers 0
+(
+  cd encoders/lseg_encoder
+  "${CONDA_BIN}" run -n "${CONDA_ENV}" python -u encode_images.py \
+    --backbone clip_vitl16_384 \
+    --weights demo_e200.ckpt \
+    --widehead --no-scaleinv \
+    --outdir "../../${DATA_ROOT}/rgb_feature_langseg" \
+    --test-rgb-dir "../../${DATA_ROOT}/images" \
+    --workers 0
+)
 
 # ==============================
 # Step 3: 训练
