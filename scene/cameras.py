@@ -16,9 +16,9 @@ from utils.graphics_utils import getWorld2View2, getProjectionMatrix
 
 class Camera(nn.Module):
     def __init__(self, colmap_id, R, T, FoVx, FoVy, image, gt_alpha_mask,
-                 image_name, uid, semantic_feature,
+                 image_name, uid, semantic_feature, semantic_feature_path=None,
                  trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cuda"
-                 ): 
+                 ):
         super(Camera, self).__init__()
 
         self.uid = uid
@@ -28,7 +28,8 @@ class Camera(nn.Module):
         self.FoVx = FoVx
         self.FoVy = FoVy
         self.image_name = image_name
-        self.semantic_feature = semantic_feature 
+        self._semantic_feature = semantic_feature
+        self.semantic_feature_path = semantic_feature_path
 
         try:
             self.data_device = torch.device(data_device)
@@ -56,6 +57,15 @@ class Camera(nn.Module):
         self.projection_matrix = getProjectionMatrix(znear=self.znear, zfar=self.zfar, fovX=self.FoVx, fovY=self.FoVy).transpose(0,1).cuda()
         self.full_proj_transform = (self.world_view_transform.unsqueeze(0).bmm(self.projection_matrix.unsqueeze(0))).squeeze(0)
         self.camera_center = self.world_view_transform.inverse()[3, :3]
+
+    @property
+    def semantic_feature(self):
+        # Lazy-load semantic feature to avoid preloading all per-image feature maps into RAM.
+        if self._semantic_feature is not None:
+            return self._semantic_feature
+        if self.semantic_feature_path is None:
+            raise RuntimeError(f"semantic_feature_path missing for camera {self.image_name}")
+        return torch.load(self.semantic_feature_path, map_location="cpu")
 
 class MiniCam:
     def __init__(self, width, height, fovy, fovx, znear, zfar, world_view_transform, full_proj_transform):
