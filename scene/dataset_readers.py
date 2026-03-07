@@ -117,13 +117,11 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, semantic_fe
 
         image_path = os.path.join(images_folder, os.path.basename(extr.name))
         image_name = os.path.basename(image_path).split(".")[0]
-        image = Image.open(image_path) 
 
-        
         semantic_feature_path = os.path.join(semantic_feature_folder, image_name) + '_fmap_CxHxW.pt'
         semantic_feature_name = os.path.basename(semantic_feature_path).split(".")[0]
 
-        cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
+        cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=None,
                               image_path=image_path, image_name=image_name, width=width, height=height,
                               semantic_feature=None,
                               semantic_feature_path=semantic_feature_path,

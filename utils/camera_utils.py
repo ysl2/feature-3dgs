@@ -3,7 +3,7 @@
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
 #
-# This software is free for non-commercial, research and evaluation use 
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
 #
 # For inquiries contact  george.drettakis@inria.fr
@@ -16,20 +16,24 @@ from utils.graphics_utils import fov2focal
 
 WARNED = False
 
+
 def loadCam(args, id, cam_info, resolution_scale):
-    orig_w, orig_h = cam_info.image.size
-    
+    if cam_info.image is not None:
+        orig_w, orig_h = cam_info.image.size
+    else:
+        orig_w, orig_h = cam_info.width, cam_info.height
+
     gt_semantic_feature = cam_info.semantic_feature
     semantic_shape = cam_info.semantic_feature_shape
     if args.resolution in [1, 2, 4, 8]:
-        resolution = round(orig_w/(resolution_scale * args.resolution)), round(orig_h/(resolution_scale * args.resolution))
-    
+        resolution = round(orig_w / (resolution_scale * args.resolution)), round(orig_h / (resolution_scale * args.resolution))
+
     # image size will the same as feature map size
     elif args.resolution == 0:
         resolution = semantic_shape[2], semantic_shape[1]
     # customize resolution
     elif args.resolution == -2:
-        resolution = 480, 320 #800, 450
+        resolution = 480, 320  # 800, 450
 
     else:  # should be a type that converts to float
         if args.resolution == -1:
@@ -37,7 +41,7 @@ def loadCam(args, id, cam_info, resolution_scale):
                 global WARNED
                 if not WARNED:
                     print("[ INFO ] Encountered quite large input images (>1.6K pixels width), rescaling to 1.6K.\n "
-                        "If this is not desired, please explicitly specify '--resolution/-r' as 1")
+                          "If this is not desired, please explicitly specify '--resolution/-r' as 1")
                     WARNED = True
                 global_down = orig_w / 1600
             else:
@@ -48,14 +52,14 @@ def loadCam(args, id, cam_info, resolution_scale):
         scale = float(global_down) * float(resolution_scale)
         resolution = (int(orig_w / scale), int(orig_h / scale))
 
-    resized_image_rgb = PILtoTorch(cam_info.image, resolution)
-
-    gt_image = resized_image_rgb[:3, ...]
+    gt_image = None
     loaded_mask = None
+    if cam_info.image is not None:
+        resized_image_rgb = PILtoTorch(cam_info.image, resolution)
+        gt_image = resized_image_rgb[:3, ...]
 
-    if resized_image_rgb.shape[1] == 4:
-        loaded_mask = resized_image_rgb[3:4, ...]
-
+        if resized_image_rgb.shape[0] == 4:
+            loaded_mask = resized_image_rgb[3:4, ...]
 
     return Camera(colmap_id=cam_info.uid, R=cam_info.R, T=cam_info.T,
                   FoVx=cam_info.FovX, FoVy=cam_info.FovY,
@@ -63,6 +67,8 @@ def loadCam(args, id, cam_info, resolution_scale):
                   image_name=cam_info.image_name, uid=id,
                   semantic_feature=gt_semantic_feature,
                   semantic_feature_path=cam_info.semantic_feature_path,
+                  image_path=cam_info.image_path,
+                  image_resolution=resolution,
                   data_device=args.data_device)
 
 
@@ -75,7 +81,8 @@ def cameraList_from_camInfos(cam_infos, resolution_scale, args):
 
     return camera_list
 
-def camera_to_JSON(id, camera : Camera):
+
+def camera_to_JSON(id, camera: Camera):
     Rt = np.zeros((4, 4))
     Rt[:3, :3] = camera.R.transpose()
     Rt[:3, 3] = camera.T
@@ -86,13 +93,13 @@ def camera_to_JSON(id, camera : Camera):
     rot = W2C[:3, :3]
     serializable_array_2d = [x.tolist() for x in rot]
     camera_entry = {
-        'id' : id,
-        'img_name' : camera.image_name,
-        'width' : camera.width,
-        'height' : camera.height,
+        'id': id,
+        'img_name': camera.image_name,
+        'width': camera.width,
+        'height': camera.height,
         'position': pos.tolist(),
         'rotation': serializable_array_2d,
-        'fy' : fov2focal(camera.FovY, camera.height),
-        'fx' : fov2focal(camera.FovX, camera.width)
+        'fy': fov2focal(camera.FovY, camera.height),
+        'fx': fov2focal(camera.FovX, camera.width)
     }
     return camera_entry
