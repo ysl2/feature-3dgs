@@ -13,6 +13,14 @@ from encoding.nn import SegmentationLosses, SyncBatchNorm
 from encoding.parallel import DataParallelModel, DataParallelCriterion
 from encoding.datasets import test_batchify_fn 
 from encoding.models.sseg import BaseNet
+
+# Use persistent cache instead of /tmp so CLIP/Torch models survive restarts.
+os.environ.setdefault("CLIP_DOWNLOAD_ROOT", os.path.expanduser("~/.cache/clip"))
+os.environ.setdefault("TORCH_HOME", os.path.expanduser("~/.cache/torch"))
+os.environ.setdefault("TORCH_MODEL_ZOO", os.environ["TORCH_HOME"])
+os.makedirs(os.environ["CLIP_DOWNLOAD_ROOT"], exist_ok=True)
+os.makedirs(os.environ["TORCH_HOME"], exist_ok=True)
+
 from modules.lseg_module import LSegModule
 #from utils import Resize
 from transforms_midas import Resize

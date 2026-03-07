@@ -6,8 +6,18 @@ import math
 import torch.nn.functional as F
 import clip
 import os
-os.environ["TORCH_MODEL_ZOO"] = "/tmp/torch/"
-os.environ["TORCH_HOME"] = "/tmp/torch/"
+
+
+def _clip_download_root():
+    return os.environ.get("CLIP_DOWNLOAD_ROOT", os.path.expanduser("~/.cache/clip"))
+
+
+def _torch_cache_root():
+    return os.environ.get("TORCH_HOME", os.path.expanduser("~/.cache/torch"))
+
+
+os.environ.setdefault("TORCH_HOME", _torch_cache_root())
+os.environ.setdefault("TORCH_MODEL_ZOO", os.environ["TORCH_HOME"])
 
 activations = {}
 
@@ -381,8 +391,8 @@ def get_readout_oper(vit_features, features, use_readout, start_index=1):
 def _make_fullclip_vitl14_384(
     pretrained, use_readout="ignore", hooks=None, enable_attention_hooks=False
 ):
-    # clip_pretrained, _ = clip.load("ViT-B/32", device='cuda', jit=False, download_root="/tmp/")
-    clip_pretrained, _ = clip.load("ViT-L/14", device='cuda', jit=False, download_root="/tmp/")
+    # clip_pretrained, _ = clip.load("ViT-B/32", device='cuda', jit=False, download_root=_clip_download_root())
+    clip_pretrained, _ = clip.load("ViT-L/14", device='cuda', jit=False, download_root=_clip_download_root())
     clip_pretrained = clip_pretrained.float()
     model = timm.create_model("vit_large_patch16_384", pretrained=pretrained)
     hooks = [5, 11, 17, 23] if hooks == None else hooks
@@ -403,7 +413,7 @@ def _make_fullclip_vitl14_384(
 def _make_pretrained_clip_vitl16_384(
     pretrained, use_readout="ignore", hooks=None, enable_attention_hooks=False
 ):
-    clip_pretrained, _ = clip.load("ViT-B/32", device='cuda', jit=False, download_root="/tmp/")
+    clip_pretrained, _ = clip.load("ViT-B/32", device='cuda', jit=False, download_root=_clip_download_root())
     model = timm.create_model("vit_large_patch16_384", pretrained=pretrained)
 
     hooks = [5, 11, 17, 23] if hooks == None else hooks
@@ -422,7 +432,7 @@ def _make_pretrained_clip_vitl16_384(
 def _make_pretrained_clipRN50x16_vitl16_384(
     pretrained, use_readout="ignore", hooks=None, enable_attention_hooks=False
 ):
-    clip_pretrained, _ = clip.load("RN50x16", device='cuda', jit=False, download_root="/tmp/")
+    clip_pretrained, _ = clip.load("RN50x16", device='cuda', jit=False, download_root=_clip_download_root())
     model = timm.create_model("vit_large_patch16_384", pretrained=pretrained)
 
     hooks = [5, 11, 17, 23] if hooks == None else hooks
@@ -439,7 +449,7 @@ def _make_pretrained_clipRN50x16_vitl16_384(
 
 
 def _make_pretrained_clip_vitb32_384(pretrained, use_readout="ignore", hooks=None, enable_attention_hooks=False):
-    clip_pretrained, _ = clip.load("ViT-B/32", device='cuda', jit=False, download_root="/tmp/")
+    clip_pretrained, _ = clip.load("ViT-B/32", device='cuda', jit=False, download_root=_clip_download_root())
     model = timm.create_model("vit_base_patch32_384", pretrained=pretrained)
 
     hooks = [2, 5, 8, 11] if hooks == None else hooks
