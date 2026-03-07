@@ -10,6 +10,9 @@ ITERATIONS="${ITERATIONS:-7000}"
 DATA_ROOT="${DATA_ROOT:-/media/songliyu/T7_Shield/Documents/feature-3dgs/data/DJI_0544}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-/media/songliyu/T7_Shield/Documents/feature-3dgs/output}"
 MODEL_PATH="${MODEL_PATH:-${OUTPUT_ROOT}/DJI_0544--lseg-${ITERATIONS}}"
+SKIP_CONVERT="${SKIP_CONVERT:-0}"
+CLIP_CACHE_SRC="${CLIP_CACHE_SRC:-$HOME/.cache/clip/ViT-B-32.pt}"
+CLIP_CACHE_DST="${CLIP_CACHE_DST:-/tmp/ViT-B-32.pt}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
@@ -50,11 +53,15 @@ fi
 # ==============================
 # Step 1: COLMAP convert (on external SSD dataset)
 # ==============================
-log "Step 1/3: convert.py"
-rm -rf "${DATA_ROOT}/distorted" "${DATA_ROOT}/sparse" "${DATA_ROOT}/stereo" "${DATA_ROOT}/images"
-"${CONDA_BIN}" run -n "${CONDA_ENV}" python convert.py \
-  -s "${DATA_ROOT}" \
-  --colmap_executable "${COLMAP_BIN}"
+if [[ "${SKIP_CONVERT}" != "1" ]]; then
+  log "Step 1/3: convert.py"
+  rm -rf "${DATA_ROOT}/distorted" "${DATA_ROOT}/sparse" "${DATA_ROOT}/stereo" "${DATA_ROOT}/images"
+  "${CONDA_BIN}" run -n "${CONDA_ENV}" python convert.py \
+    -s "${DATA_ROOT}" \
+    --colmap_executable "${COLMAP_BIN}"
+else
+  log "Step 1/3: convert.py (skipped, reusing existing convert outputs)"
+fi
 
 # convert.py may swallow non-zero tool exits into large shell codes; verify outputs explicitly.
 if [[ ! -f "${DATA_ROOT}/sparse/0/images.bin" && ! -f "${DATA_ROOT}/sparse/0/images.txt" ]]; then
@@ -71,6 +78,14 @@ fi
 # ==============================
 log "Step 2/3: LSeg encode_images.py"
 rm -rf "${DATA_ROOT}/rgb_feature_langseg"
+
+# Prevent network timeout in CLIP download path by seeding a verified local cache file.
+if [[ -f "${CLIP_CACHE_SRC}" ]]; then
+  cp -f "${CLIP_CACHE_SRC}" "${CLIP_CACHE_DST}"
+  log "Seeded CLIP cache: ${CLIP_CACHE_DST} <= ${CLIP_CACHE_SRC}"
+else
+  log "CLIP cache source missing: ${CLIP_CACHE_SRC} (encode may attempt online download)"
+fi
 (
   cd encoders/lseg_encoder
   "${CONDA_BIN}" run -n "${CONDA_ENV}" python -u encode_images.py \
