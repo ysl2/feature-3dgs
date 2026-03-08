@@ -29,9 +29,19 @@ target_link_libraries(${PROJECT_NAME}
 	nanoflann
 )
 else()
+if(TARGET embree4)
+	set(SIBR_EMBREE_TARGET embree4)
+elseif(TARGET embree)
+	set(SIBR_EMBREE_TARGET embree)
+else()
+	# Fallback for systems exposing only plain library names.
+	find_library(SIBR_EMBREE_LIB NAMES embree4 embree REQUIRED)
+	set(SIBR_EMBREE_TARGET ${SIBR_EMBREE_LIB})
+endif()
+
 target_link_libraries(${PROJECT_NAME}
 	OpenMP::OpenMP_CXX
-	embree
+	${SIBR_EMBREE_TARGET}
 # CLUSTER
 #	/data/graphdeco/share/tbb/lib64/libtbb.so
 	sibr_graphics

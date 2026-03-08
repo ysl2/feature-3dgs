@@ -17,6 +17,7 @@ extern "C"
 {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/error.h>
 #include <libswscale/swscale.h>
 }
 #endif
@@ -38,12 +39,9 @@ namespace sibr {
 	) : filepath(_filepath), fps(_fps), _forceResize(forceResize)
 	{
 #ifndef HEADLESS
-		/** Init FFMPEG, registering available codec plugins. */
+		/** Init FFMPEG (modern FFmpeg no longer needs av_register_all). */
 		if (!ffmpegInitDone) {
-			SIBR_LOG << "[FFMPEG] Registering all." << std::endl;
-			// Ignore next line warning.
-#pragma warning(suppress : 4996)
-			av_register_all();
+			SIBR_LOG << "[FFMPEG] Initialization done." << std::endl;
 			ffmpegInitDone = true;
 		}
 		
@@ -74,16 +72,28 @@ namespace sibr {
 	void FFVideoEncoder::close()
 	{
 #ifndef HEADLESS
+		// Flush delayed packets then finalize container.
+		encode(nullptr);
 		if (av_write_trailer(pFormatCtx) < 0) {
 			SIBR_WRG << "[FFMPEG] Can not av_write_trailer " << std::endl;
 		}
 
-		if (video_st) {
-			avcodec_close(video_st->codec);
-			av_free(frameYUV);
+		if (pkt) {
+			av_packet_free(&pkt);
 		}
-		avio_close(pFormatCtx->pb);
-		avformat_free_context(pFormatCtx);
+		if (frameYUV) {
+			av_frame_free(&frameYUV);
+		}
+		if (pCodecCtx) {
+			avcodec_free_context(&pCodecCtx);
+		}
+		if (pFormatCtx) {
+			if (pFormatCtx->pb) {
+				avio_closep(&pFormatCtx->pb);
+			}
+			avformat_free_context(pFormatCtx);
+			pFormatCtx = nullptr;
+		}
 
 		needFree = false;
 #endif
@@ -109,7 +119,11 @@ namespace sibr {
 		pFormatCtx = avformat_alloc_context();
 
 		fmt = av_guess_format(NULL, out_file, NULL);
-		pFormatCtx->oformat = fmt;
+		if (!fmt) {
+			SIBR_WRG << "[FFMPEG] Could not infer output format for " << filepath << std::endl;
+			return;
+		}
+		pFormatCtx->oformat = const_cast<AVOutputFormat*>(fmt);
 
 		const bool isH264 = pFormatCtx->oformat->video_codec == AV_CODEC_ID_H264;
 		if(isH264){
@@ -129,22 +143,26 @@ namespace sibr {
 			return;
 		}
 
-		video_st = avformat_new_stream(pFormatCtx, pCodec);
-
+		video_st = avformat_new_stream(pFormatCtx, nullptr);
 		if (video_st == NULL) {
 			SIBR_WRG << "[FFMPEG] Could not create stream." << std::endl;
 			return;
 		}
 
-		pCodecCtx = video_st->codec;
+		pCodecCtx = avcodec_alloc_context3(pCodec);
+		if (!pCodecCtx) {
+			SIBR_WRG << "[FFMPEG] Could not allocate codec context." << std::endl;
+			return;
+		}
+
 		pCodecCtx->codec_id = fmt->video_codec;
 		pCodecCtx->codec_type = AVMEDIA_TYPE_VIDEO;
 		pCodecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
 		pCodecCtx->width = w;
 		pCodecCtx->height = h;
 		pCodecCtx->gop_size = 10;
-		pCodecCtx->time_base.num = 1;
-		pCodecCtx->time_base.den = (int)std::round(fps);
+		pCodecCtx->time_base = AVRational{1, (int)std::round(fps)};
+		video_st->time_base = pCodecCtx->time_base;
 
 		// Required for the header to be well-formed and compatible with Powerpoint/MediaPlayer/...
 		if (pFormatCtx->oformat->flags & AVFMT_GLOBALHEADER) {
@@ -163,6 +181,11 @@ namespace sibr {
 		int res = avcodec_open2(pCodecCtx, pCodec, &param);
 		if(res < 0){
 			SIBR_WRG << "[FFMPEG] Failed to open encoder, error: " << res << std::endl;
+			return;
+		}
+		res = avcodec_parameters_from_context(video_st->codecpar, pCodecCtx);
+		if (res < 0) {
+			SIBR_WRG << "[FFMPEG] Failed to copy codec params to stream, error: " << res << std::endl;
 			return;
 		}
 		// Write the file header.
@@ -211,9 +234,7 @@ namespace sibr {
 		frameYUV->data[1] = frameYUV->data[0] + yuSize[0];
 		frameYUV->data[2] = frameYUV->data[1] + yuSize[1];
 
-		//frameYUV->pts = (1.0 / std::round(fps)) *frameCount * 90;
-		frameYUV->pts = (int)(frameCount*(video_st->time_base.den) / ((video_st->time_base.num) * std::round(fps)));
-		++frameCount;
+		frameYUV->pts = frameCount++;
 
 		return encode(frameYUV);
 #else
@@ -229,17 +250,30 @@ namespace sibr {
 #ifndef HEADLESS
 	bool FFVideoEncoder::encode(AVFrame * frame)
 	{
-		int got_picture = 0;
-
-		int ret = avcodec_encode_video2(pCodecCtx, pkt, frameYUV, &got_picture);
+		int ret = avcodec_send_frame(pCodecCtx, frame);
 		if (ret < 0) {
-			SIBR_WRG << "[FFMPEG] Failed to encode frame." << std::endl;
+			SIBR_WRG << "[FFMPEG] Failed to send frame to encoder." << std::endl;
 			return false;
 		}
-		if (got_picture == 1) {
+
+		while (ret >= 0) {
+			ret = avcodec_receive_packet(pCodecCtx, pkt);
+			if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+				break;
+			}
+			if (ret < 0) {
+				SIBR_WRG << "[FFMPEG] Failed to receive packet from encoder." << std::endl;
+				return false;
+			}
+
 			pkt->stream_index = video_st->index;
-			ret = av_write_frame(pFormatCtx, pkt);
+			av_packet_rescale_ts(pkt, pCodecCtx->time_base, video_st->time_base);
+			ret = av_interleaved_write_frame(pFormatCtx, pkt);
 			av_packet_unref(pkt);
+			if (ret < 0) {
+				SIBR_WRG << "[FFMPEG] Failed to write encoded packet." << std::endl;
+				return false;
+			}
 		}
 
 		return true;

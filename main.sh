@@ -12,7 +12,7 @@ MODEL_PATH="${MODEL_PATH:-${OUTPUT_ROOT}/DJI_0544--lseg-${ITERATIONS}}"
 
 SIBR_ROOT="${SIBR_ROOT:-/home/songliyu/Documents/feature-3dgs/SIBR_viewers}"
 SIBR_BUILD_DIR="${SIBR_BUILD_DIR:-${SIBR_ROOT}/build}"
-SIBR_INSTALL_BIN="${SIBR_INSTALL_BIN:-${SIBR_BUILD_DIR}/install/bin}"
+SIBR_INSTALL_BIN="${SIBR_INSTALL_BIN:-${SIBR_ROOT}/install/bin}"
 SIBR_VIEWER_BIN="${SIBR_VIEWER_BIN:-${SIBR_INSTALL_BIN}/SIBR_remoteGaussian_app}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -54,7 +54,9 @@ fi
 
 if [[ ! -x "${SIBR_VIEWER_BIN}" ]]; then
   log "SIBR viewer binary not found, building..."
-  cmake -B "${SIBR_BUILD_DIR}" "${SIBR_ROOT}" -DCMAKE_BUILD_TYPE=Release
+  cmake -B "${SIBR_BUILD_DIR}" "${SIBR_ROOT}" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
   cmake --build "${SIBR_BUILD_DIR}" -j"$(nproc)" --target install
 fi
 

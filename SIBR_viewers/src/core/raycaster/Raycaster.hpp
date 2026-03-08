@@ -13,8 +13,16 @@
 #pragma once
 
 # pragma warning(push, 0)
-#  include <embree3/rtcore.h>
-#  include <embree3/rtcore_ray.h>
+#  if __has_include(<embree3/rtcore.h>)
+#    include <embree3/rtcore.h>
+#    include <embree3/rtcore_ray.h>
+#  elif __has_include(<embree4/rtcore.h>)
+#    define SIBR_EMBREE4 1
+#    include <embree4/rtcore.h>
+#    include <embree4/rtcore_ray.h>
+#  else
+#    error "Embree headers not found (embree3/embree4)."
+#  endif
 #  include <xmmintrin.h>	// functions for setting the control register
 #  include <pmmintrin.h>	// functions for setting the control register
 # pragma warning(pop)

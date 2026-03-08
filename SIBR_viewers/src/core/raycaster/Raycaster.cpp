@@ -15,6 +15,26 @@
 
 namespace sibr
 {
+#ifdef SIBR_EMBREE4
+	using RTCIntersectContextCompat = RTCIntersectArguments;
+	using RTCOccludedContextCompat = RTCOccludedArguments;
+	static inline void sibrInitIntersectContext(RTCIntersectContextCompat * ctx) { rtcInitIntersectArguments(ctx); }
+	static inline void sibrInitOccludedContext(RTCOccludedContextCompat * ctx) { rtcInitOccludedArguments(ctx); }
+	static inline void sibrOccluded1(RTCScene scene, RTCOccludedContextCompat * ctx, RTCRay * ray) { rtcOccluded1(scene, ray, ctx); }
+	static inline void sibrOccluded8(const int * valid8, RTCScene scene, RTCOccludedContextCompat * ctx, RTCRay8 * ray) { rtcOccluded8(valid8, scene, ray, ctx); }
+	static inline void sibrIntersect1(RTCScene scene, RTCIntersectContextCompat * ctx, RTCRayHit * rh) { rtcIntersect1(scene, rh, ctx); }
+	static inline void sibrIntersect8(const int * valid8, RTCScene scene, RTCIntersectContextCompat * ctx, RTCRayHit8 * rh) { rtcIntersect8(valid8, scene, rh, ctx); }
+#else
+	using RTCOccludedContextCompat = RTCIntersectContext;
+	using RTCIntersectContextCompat = RTCIntersectContext;
+	static inline void sibrInitIntersectContext(RTCIntersectContextCompat * ctx) { rtcInitIntersectContext(ctx); }
+	static inline void sibrInitOccludedContext(RTCOccludedContextCompat * ctx) { rtcInitIntersectContext(ctx); }
+	static inline void sibrOccluded1(RTCScene scene, RTCIntersectContextCompat * ctx, RTCRay * ray) { rtcOccluded1(scene, ctx, ray); }
+	static inline void sibrOccluded8(const int * valid8, RTCScene scene, RTCIntersectContextCompat * ctx, RTCRay8 * ray) { rtcOccluded8(valid8, scene, ctx, ray); }
+	static inline void sibrIntersect1(RTCScene scene, RTCIntersectContextCompat * ctx, RTCRayHit * rh) { rtcIntersect1(scene, ctx, rh); }
+	static inline void sibrIntersect8(const int * valid8, RTCScene scene, RTCIntersectContextCompat * ctx, RTCRayHit8 * rh) { rtcIntersect8(valid8, scene, ctx, rh); }
+#endif
+
 	/*static*/ SIBR_RAYCASTER_EXPORT const Raycaster::geomId		Raycaster::InvalidGeomId = RTC_INVALID_GEOMETRY_ID;
 	/*static*/ bool													Raycaster::g_initRegisterFlag = false;
 	/*static*/ Raycaster::RTCDevicePtr								Raycaster::g_device = nullptr;
@@ -208,9 +228,9 @@ namespace sibr
 			SIBR_ERR << "cannot initialize embree, failed cast rays." << std::endl;
 		else
 		{
-			RTCIntersectContext context;
-			rtcInitIntersectContext(&context);
-			rtcOccluded1(*_scene.get(), &context, &ray);
+			RTCOccludedContextCompat context;
+			sibrInitOccludedContext(&context);
+			sibrOccluded1(*_scene.get(), &context, &ray);
 		}
 		return ray.tfar < 0.0f;
 	}
@@ -237,9 +257,9 @@ namespace sibr
 			SIBR_ERR << "cannot initialize embree, failed cast rays." << std::endl;
 		else
 		{
-			RTCIntersectContext context;
-			rtcInitIntersectContext(&context);
-			rtcOccluded8(valid8, *_scene.get(), &context, &ray);
+			RTCOccludedContextCompat context;
+			sibrInitOccludedContext(&context);
+			sibrOccluded8(valid8, *_scene.get(), &context, &ray);
 		}
 
 		std::array<bool, 8> res;
@@ -272,9 +292,9 @@ namespace sibr
 			SIBR_ERR << "cannot initialize embree, failed cast rays." << std::endl;
 		else
 		{
-			RTCIntersectContext context;
-			rtcInitIntersectContext(&context);
-			rtcIntersect1(*_scene.get(), &context, &rh);
+			RTCIntersectContextCompat context;
+			sibrInitIntersectContext(&context);
+			sibrIntersect1(*_scene.get(), &context, &rh);
 			rh.hit.Ng_x = -rh.hit.Ng_x; // EMBREE_FIXME: only correct for triangles,quads, and subdivision surfaces
 			rh.hit.Ng_y = -rh.hit.Ng_y;
 			rh.hit.Ng_z = -rh.hit.Ng_z;
@@ -319,9 +339,9 @@ namespace sibr
 			SIBR_ERR << "cannot initialize embree, failed cast rays." << std::endl;
 		else
 		{
-			RTCIntersectContext context;
-			rtcInitIntersectContext(&context);
-			rtcIntersect8(valid8.data(), *_scene.get(), &context, &rh);
+			RTCIntersectContextCompat context;
+			sibrInitIntersectContext(&context);
+			sibrIntersect8(valid8.data(), *_scene.get(), &context, &rh);
 		}
 
 		std::array<RayHit, 8> res;

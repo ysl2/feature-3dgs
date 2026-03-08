@@ -936,11 +936,12 @@ namespace sibr {
 		}
 
 		uint getModeIndice() const {
-			uint mode, mode_size = 0;
-			for (const auto & [key, val] : bins) {
+			uint mode = 0, mode_size = 0;
+			for (uint i = 0; i < bins.size(); ++i) {
+				const uint val = bins[i];
 				if (val > mode_size) {
 					mode_size = val;
-					mode = key;
+					mode = i;
 				}
 			}
 			return mode;
