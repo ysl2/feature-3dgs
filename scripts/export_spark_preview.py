@@ -15,6 +15,8 @@ from typing import Dict, List, Sequence, Tuple
 import numpy as np
 
 
+SH_C0 = 0.28209479177387814
+
 PLY_TO_NUMPY = {
     "char": np.int8,
     "uchar": np.uint8,
@@ -65,6 +67,29 @@ def pca_rgb(semantic: np.ndarray, fit_samples: int = 50000) -> np.ndarray:
     denom = np.maximum(hi - lo, 1e-6)
     norm = np.clip((proj - lo) / denom, 0.0, 1.0)
     return (norm * 255.0).astype(np.uint8)
+
+
+def rgb_from_dc(vertices: np.ndarray) -> np.ndarray:
+    names = set(vertices.dtype.names or [])
+    if {"f_dc_0", "f_dc_1", "f_dc_2"}.issubset(names):
+        r = np.clip(vertices["f_dc_0"].astype(np.float32) * SH_C0 + 0.5, 0.0, 1.0)
+        g = np.clip(vertices["f_dc_1"].astype(np.float32) * SH_C0 + 0.5, 0.0, 1.0)
+        b = np.clip(vertices["f_dc_2"].astype(np.float32) * SH_C0 + 0.5, 0.0, 1.0)
+        rgb = np.stack([r, g, b], axis=1)
+        return (rgb * 255.0).astype(np.uint8)
+
+    if {"red", "green", "blue"}.issubset(names):
+        rgb = np.stack(
+            [
+                vertices["red"].astype(np.float32),
+                vertices["green"].astype(np.float32),
+                vertices["blue"].astype(np.float32),
+            ],
+            axis=1,
+        )
+        return np.clip(rgb, 0.0, 255.0).astype(np.uint8)
+
+    return np.full((vertices.shape[0], 3), 255, dtype=np.uint8)
 
 
 def dot_rgb(semantic: np.ndarray, query_vec: np.ndarray) -> np.ndarray:
@@ -236,6 +261,7 @@ def main() -> None:
     parser.add_argument("--max-points", type=int, default=500000, help="Randomly sample at most N points for interactive preview")
     parser.add_argument("--query-vector", default=None, help="Optional .npy query vector (D,) to export dot-product heatmap")
     parser.add_argument("--out-query", default=None, help="Output PLY path for query heatmap (required with --query-vector)")
+    parser.add_argument("--out-rgb", default=None, help="Optional output PLY path for original RGB preview (from f_dc_*)")
     args = parser.parse_args()
 
     meta = parse_ply_meta(args.input)
@@ -245,6 +271,11 @@ def main() -> None:
     rgb_pca = pca_rgb(semantic)
     write_preview_ply(args.out_pca, vertices, rgb_pca)
     print(f"[OK] PCA preview written: {args.out_pca} ({vertices.shape[0]} points)")
+
+    if args.out_rgb:
+        rgb_native = rgb_from_dc(vertices)
+        write_preview_ply(args.out_rgb, vertices, rgb_native)
+        print(f"[OK] RGB preview written: {args.out_rgb}")
 
     if args.query_vector is not None:
         if not args.out_query:
