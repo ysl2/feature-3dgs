@@ -81,7 +81,8 @@ fi
 log "Step 5/6: segmentation.py (default labels)"
 (
   cd encoders/lseg_encoder
-  "${CONDA_BIN}" run -n "${CONDA_ENV}" python -u segmentation.py \
+  # Force non-GUI backend to avoid tkinter/Tcl thread crashes in headless runs.
+  MPLBACKEND=Agg "${CONDA_BIN}" run -n "${CONDA_ENV}" python -u segmentation.py \
     --data "${MODEL_PATH}" \
     --iteration "${RENDER_ITERATION}"
 )
