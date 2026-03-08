@@ -46,13 +46,28 @@ fi
 # ==============================
 # Step 4: render.py
 # ==============================
-log "Step 4/6: render.py (novel_view)"
-"${CONDA_BIN}" run -n "${CONDA_ENV}" python render.py \
-  -s "${DATA_ROOT}" \
-  -m "${MODEL_PATH}" \
-  -f lseg \
-  --iteration "${RENDER_ITERATION}" \
-  --novel_view
+NOVEL_RENDER_DIR="${MODEL_PATH}/novel_views/ours_${RENDER_ITERATION}/renders"
+NOVEL_RENDER_COUNT=$(find "${NOVEL_RENDER_DIR}" -maxdepth 1 -type f -name '*.png' 2>/dev/null | wc -l)
+if [[ "${NOVEL_RENDER_COUNT}" -gt 0 ]]; then
+  log "Step 4/6: render.py skipped (novel_view already exists: ${NOVEL_RENDER_COUNT} frames)"
+else
+  log "Step 4/6: render.py (novel_view only, skip train/test because no test cameras)"
+  "${CONDA_BIN}" run -n "${CONDA_ENV}" python render.py \
+    -s "${DATA_ROOT}" \
+    -m "${MODEL_PATH}" \
+    -f lseg \
+    --iteration "${RENDER_ITERATION}" \
+    --skip_train \
+    --skip_test \
+    --novel_view
+fi
+
+NOVEL_RENDER_COUNT=$(find "${NOVEL_RENDER_DIR}" -maxdepth 1 -type f -name '*.png' 2>/dev/null | wc -l)
+log "Novel-view rendered frames: ${NOVEL_RENDER_COUNT}"
+if [[ "${NOVEL_RENDER_COUNT}" -lt 1 ]]; then
+  echo "[ERROR] novel_view renders missing under ${NOVEL_RENDER_DIR}"
+  exit 1
+fi
 
 # ==============================
 # Step 5: segmentation.py (no label_src)
