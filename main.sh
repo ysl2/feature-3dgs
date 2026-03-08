@@ -6,11 +6,14 @@ CONDA_BIN="${CONDA_BIN:-/home/songliyu/.vocal/miniforge3/bin/conda}"
 
 ITERATIONS="${ITERATIONS:-7000}"
 RENDER_ITERATION="${RENDER_ITERATION:-${ITERATIONS}}"
-FPS="${FPS:-10}"
-
 DATA_ROOT="${DATA_ROOT:-/media/songliyu/T7_Shield/Documents/feature-3dgs/data/DJI_0544}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-/media/songliyu/T7_Shield/Documents/feature-3dgs/output}"
 MODEL_PATH="${MODEL_PATH:-${OUTPUT_ROOT}/DJI_0544--lseg-${ITERATIONS}}"
+
+SIBR_ROOT="${SIBR_ROOT:-/home/songliyu/Documents/feature-3dgs/SIBR_viewers}"
+SIBR_BUILD_DIR="${SIBR_BUILD_DIR:-${SIBR_ROOT}/build}"
+SIBR_INSTALL_BIN="${SIBR_INSTALL_BIN:-${SIBR_BUILD_DIR}/install/bin}"
+SIBR_VIEWER_BIN="${SIBR_VIEWER_BIN:-${SIBR_INSTALL_BIN}/SIBR_remoteGaussian_app}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
@@ -25,7 +28,6 @@ log "Using RENDER_ITERATION=${RENDER_ITERATION}"
 
 if [[ ! -d "${MODEL_PATH}" ]]; then
   echo "[ERROR] MODEL_PATH not found: ${MODEL_PATH}"
-  echo "        This postprocess pipeline requires an existing trained model."
   exit 1
 fi
 
@@ -35,66 +37,46 @@ if [[ ! -d "${MODEL_PATH}/point_cloud/iteration_${RENDER_ITERATION}" ]]; then
 fi
 
 # ==================================================================
-# [DISABLED] Preprocess and training are intentionally commented out.
-# Keep for traceability and quick rollback.
-#
-# Step 1: convert.py
-# Step 2: encode_images.py
-# Step 3: train.py
+# [DISABLED] Previous postprocess workflow is intentionally commented.
+#   Step 4: render.py
+#   Step 5: segmentation.py
+#   Step 6: videos.py
 # ==================================================================
 
-# ==============================
-# Step 4: render.py
-# ==============================
-NOVEL_RENDER_DIR="${MODEL_PATH}/novel_views/ours_${RENDER_ITERATION}/renders"
-NOVEL_RENDER_COUNT=0
-if [[ -d "${NOVEL_RENDER_DIR}" ]]; then
-  NOVEL_RENDER_COUNT=$(find "${NOVEL_RENDER_DIR}" -maxdepth 1 -type f -name '*.png' | wc -l)
-fi
-if [[ "${NOVEL_RENDER_COUNT}" -gt 0 ]]; then
-  log "Step 4/6: render.py skipped (novel_view already exists: ${NOVEL_RENDER_COUNT} frames)"
-else
-  log "Step 4/6: render.py (novel_view only, skip train/test because no test cameras)"
-  "${CONDA_BIN}" run -n "${CONDA_ENV}" python render.py \
-    -s "${DATA_ROOT}" \
-    -m "${MODEL_PATH}" \
-    -f lseg \
-    --iteration "${RENDER_ITERATION}" \
-    --skip_train \
-    --skip_test \
-    --novel_view
+# ==================================================================
+# Viewer workflow (LSeg/CLIP only)
+# ==================================================================
+
+# Optional (manual, one-time): install Ubuntu dependencies if missing.
+# sudo apt install -y \
+#   libglew-dev libassimp-dev libboost-all-dev libgtk-3-dev libopencv-dev \
+#   libglfw3-dev libavdevice-dev libavcodec-dev libeigen3-dev libxxf86vm-dev libembree-dev
+
+if [[ ! -x "${SIBR_VIEWER_BIN}" ]]; then
+  log "SIBR viewer binary not found, building..."
+  cmake -B "${SIBR_BUILD_DIR}" "${SIBR_ROOT}" -DCMAKE_BUILD_TYPE=Release
+  cmake --build "${SIBR_BUILD_DIR}" -j"$(nproc)" --target install
 fi
 
-NOVEL_RENDER_COUNT=0
-if [[ -d "${NOVEL_RENDER_DIR}" ]]; then
-  NOVEL_RENDER_COUNT=$(find "${NOVEL_RENDER_DIR}" -maxdepth 1 -type f -name '*.png' | wc -l)
-fi
-log "Novel-view rendered frames: ${NOVEL_RENDER_COUNT}"
-if [[ "${NOVEL_RENDER_COUNT}" -lt 1 ]]; then
-  echo "[ERROR] novel_view renders missing under ${NOVEL_RENDER_DIR}"
+if [[ ! -x "${SIBR_VIEWER_BIN}" ]]; then
+  echo "[ERROR] SIBR viewer binary still missing after build: ${SIBR_VIEWER_BIN}"
   exit 1
 fi
 
-# ==============================
-# Step 5: segmentation.py (no label_src)
-# ==============================
-log "Step 5/6: segmentation.py (default labels)"
-(
-  cd encoders/lseg_encoder
-  # Force non-GUI backend to avoid tkinter/Tcl thread crashes in headless runs.
-  MPLBACKEND=Agg "${CONDA_BIN}" run -n "${CONDA_ENV}" python -u segmentation.py \
-    --data "${MODEL_PATH}" \
-    --iteration "${RENDER_ITERATION}"
-)
+log "Launching SIBR viewer: ${SIBR_VIEWER_BIN}"
+"${SIBR_VIEWER_BIN}" &
+VIEWER_PID=$!
 
-# ==============================
-# Step 6: videos.py
-# ==============================
-log "Step 6/6: videos.py"
-"${CONDA_BIN}" run -n "${CONDA_ENV}" python videos.py \
-  --data "${MODEL_PATH}" \
-  --fps "${FPS}" \
+sleep 2
+
+log "Launching view.py (lseg, iteration ${RENDER_ITERATION})"
+"${CONDA_BIN}" run -n "${CONDA_ENV}" python view.py \
+  -s "${DATA_ROOT}" \
+  -m "${MODEL_PATH}" \
   -f lseg \
   --iteration "${RENDER_ITERATION}"
 
-log "Postprocess pipeline completed: ${MODEL_PATH}"
+log "view.py exited. Stopping SIBR viewer (pid=${VIEWER_PID})"
+kill "${VIEWER_PID}" 2>/dev/null || true
+
+log "Viewer workflow completed."
