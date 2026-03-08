@@ -11,3 +11,8 @@ screenshots
 *.pth
 data
 data_scannet
+
+# Large point-cloud artifacts (safety guard: never track)
+*.ply
+*.splat
+*.spz
