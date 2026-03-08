@@ -47,7 +47,10 @@ fi
 # Step 4: render.py
 # ==============================
 NOVEL_RENDER_DIR="${MODEL_PATH}/novel_views/ours_${RENDER_ITERATION}/renders"
-NOVEL_RENDER_COUNT=$(find "${NOVEL_RENDER_DIR}" -maxdepth 1 -type f -name '*.png' 2>/dev/null | wc -l)
+NOVEL_RENDER_COUNT=0
+if [[ -d "${NOVEL_RENDER_DIR}" ]]; then
+  NOVEL_RENDER_COUNT=$(find "${NOVEL_RENDER_DIR}" -maxdepth 1 -type f -name '*.png' | wc -l)
+fi
 if [[ "${NOVEL_RENDER_COUNT}" -gt 0 ]]; then
   log "Step 4/6: render.py skipped (novel_view already exists: ${NOVEL_RENDER_COUNT} frames)"
 else
@@ -62,7 +65,10 @@ else
     --novel_view
 fi
 
-NOVEL_RENDER_COUNT=$(find "${NOVEL_RENDER_DIR}" -maxdepth 1 -type f -name '*.png' 2>/dev/null | wc -l)
+NOVEL_RENDER_COUNT=0
+if [[ -d "${NOVEL_RENDER_DIR}" ]]; then
+  NOVEL_RENDER_COUNT=$(find "${NOVEL_RENDER_DIR}" -maxdepth 1 -type f -name '*.png' | wc -l)
+fi
 log "Novel-view rendered frames: ${NOVEL_RENDER_COUNT}"
 if [[ "${NOVEL_RENDER_COUNT}" -lt 1 ]]; then
   echo "[ERROR] novel_view renders missing under ${NOVEL_RENDER_DIR}"
